@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Keynote presentations
+.key
+
+# Project-specific
+exploration/
