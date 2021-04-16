@@ -87,6 +87,7 @@ def draw_data():
 
     fig.update_layout(yaxis=dict(range=[0, 5]))
     fig.update_layout(xaxis=dict(range=[0, 5]))
+    fig.update_layout(xaxis_title="Transaction volume", yaxis_title="AUM")
     return fig
 
 
