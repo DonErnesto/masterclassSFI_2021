@@ -1,5 +1,7 @@
 """
 TO-DO:
++ Get rid of 2 sample functions (makes no sense)
++ Tree depth: integer
 - Single figure with the "training data" and the fitted classifier (
 if you press "fit", you see the decision boundary and predictions.
 Before only the training data. Predictions: indicate TN, TP, FP, FN
@@ -28,17 +30,17 @@ from sklearn.tree import DecisionTreeClassifier
 st.title('Decision Tree')
 n = st.sidebar.selectbox('dataset size', [100, 500, 1000])
 random_seed = st.sidebar.number_input('ID', value=1)
-max_depth = st.sidebar.selectbox('max tree depth', [1, 5, 10, 25])
+max_depth = st.sidebar.number_input('max tree depth', min_value=1, max_value=25, value=1)
 
 x1_label = 'Transaction Volume'
 x2_label = 'AUM'
 y_label = 'Outcome'
 
-n1, n2, n3, n4 = 1000, 1000, 100, 100
 
 @st.cache
-def generate_Xy():
-    rng = np.random.default_rng(12345)
+def generate_Xy(seed=1, n=100):
+    n1, n2, n3, n4 = int(n*0.25), int(n*0.25), int(n*.05), int(n*.05)
+    rng = np.random.default_rng(seed)
     X1 = rng.multivariate_normal(mean=[1.9, 3.0],
                 cov=[[0.2, -0.12], [-0.12, 0.2]], size=n1)
     X2 = rng.multivariate_normal([1.25, 2.75], [[0.12, 0], [0, 0.13]], n2)
@@ -48,82 +50,83 @@ def generate_Xy():
     y = np.concatenate((np.zeros(n1 + n2), np.ones(n3 + n4)))
     return X, y
 
-@st.cache
-def draw_n_from_Xy(X, y, n=100, seed=1):
-    rng = np.random.default_rng(seed)
-    idx = np.random.choice(X.shape[0], n, replace=False)
-    X_sample = X[idx]
-    y_sample = y[idx]
-    sort_ids = y_sample.argsort()
-    X_sample = X_sample[sort_ids]
-    y_sample = y_sample[sort_ids]
-    return X_sample, y_sample
+# @st.cache
+# def draw_n_from_Xy(X, y, n=100, seed=1):
+#     rng = np.random.default_rng(seed)
+#     idx = np.random.choice(X.shape[0], n, replace=False)
+#     X_sample = X[idx]
+#     y_sample = y[idx]
+#     sort_ids = y_sample.argsort()
+#     X_sample = X_sample[sort_ids]
+#     y_sample = y_sample[sort_ids]
+#     return X_sample, y_sample
 
 
 
 
 # Here: draw at random from X, y
-X_, y_ = generate_Xy()
-X, y = draw_n_from_Xy(X_, y_, n=n, seed=random_seed)
+# X_, y_ = generate_Xy()
+X, y = generate_Xy(n=n, seed=random_seed)
 
 
 
 df = pd.DataFrame({x1_label: X[:, 0], x2_label: X[:, 1], y_label: y})
 df[y_label] = df[y_label].astype(int).astype(str)
 
-fig = go.Figure(go.Scatter(x=X[:, 0], y=X[:, 1],
-                    mode='markers',
-                    showlegend=False,
-                    marker=dict(size=10,
-                                color=y,
-                                colorscale='cividis',
-                                line=dict(color='black', width=1))
-                    )
-                     )
+def draw_data():
+    fig = go.Figure(go.Scatter(x=X[:, 0], y=X[:, 1],
+                        mode='markers',
+                        showlegend=False,
+                        marker=dict(size=10,
+                                    color=y,
+                                    colorscale='portland',
+                                    line=dict(color='black', width=1))
+                        )
+                         )
 
-# fig = px.scatter(df,
-#                 x=x1_label,
-#                 y=x2_label,
-#                 color=y_label,
-#                 #hover_name='y',
-#                 title='2-D Feature space with binary labels',
-#                 color_discrete_sequence='bluered')
-#
 
-fig.update_layout(yaxis=dict(range=[0, 5]))
-fig.update_layout(xaxis=dict(range=[0, 5]))
-st.plotly_chart(fig)
+    fig.update_layout(yaxis=dict(range=[0, 5]))
+    fig.update_layout(xaxis=dict(range=[0, 5]))
+    return fig
+
+
 
 
 # Fitting a tree to the dataset
 
 if st.sidebar.button('Fit classifier'):
     tree = DecisionTreeClassifier(max_depth=max_depth)
-    h = 0.05
+    h = 0.02
     x_min, x_max = 0, 5
     y_min, y_max = 0, 5
 
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h)
                          , np.arange(y_min, y_max, h))
-    y_hat = tree.fit(X, y).predict(np.c_[xx.ravel(), yy.ravel()])
+    zz = tree.fit(X, y).predict(np.c_[xx.ravel(), yy.ravel()])
+    y_hat = tree.fit(X, y).predict(X)
 
-    trace1 = go.Heatmap(x=xx.ravel(), y=yy.ravel(), z=y_hat,
-                  colorscale='cividis',
+    trace1 = go.Heatmap(x=xx.ravel(), y=yy.ravel(), z=zz,
+                  colorscale='portland',
                   showscale=False)
     trace2 = go.Scatter(x=X[:, 0], y=X[:, 1],
                     mode='markers',
                     showlegend=False,
                     marker=dict(size=10,
-                                color=y,
-                                colorscale='cividis',
+                                color=y_hat,
+                                colorscale='portland',
                                 line=dict(color='black', width=1))
                     )
-    fig = plotly.subplots.make_subplots(rows=1, cols=1,
-                          subplot_titles=("Random Forest (Depth = 4)",))
+    #fig = plotly.subplots.make_subplots(rows=1, cols=1,
+    #                       subplot_titles=("Random Forest (Depth = 4)",))
+    #fig = draw_data()
+    fig = go.Figure()
     fig.add_trace(trace1)
     fig.add_trace(trace2)
-    fig.update_layout(yaxis=dict(range=[0, 5]))
-    fig.update_layout(xaxis=dict(range=[0, 5]))
+    #fig.update_layout(yaxis=dict(range=[0, 5]))
+    #fig.update_layout(xaxis=dict(range=[0, 5]))
+    st.plotly_chart(fig)
+else:
+    fig = draw_data()
     st.plotly_chart(fig)
 
 
