@@ -123,8 +123,10 @@ if st.sidebar.button('Fit classifier'):
     fig = go.Figure()
     fig.add_trace(trace1)
     fig.add_trace(trace2)
-    #fig.update_layout(yaxis=dict(range=[0, 5]))
-    #fig.update_layout(xaxis=dict(range=[0, 5]))
+    fig.update_layout(xaxis_title="Transaction volume", yaxis_title="AUM")
+
+    fig.update_layout(yaxis=dict(range=[0, 5]))
+    fig.update_layout(xaxis=dict(range=[0, 5]))
     st.plotly_chart(fig)
 else:
     fig = draw_data()
