@@ -2,10 +2,11 @@
 TO-DO:
 + Get rid of 2 sample functions (makes no sense)
 + Tree depth: integer
-- Single figure with the "training data" and the fitted classifier (
++ Single figure with the "training data" and the fitted classifier (
 if you press "fit", you see the decision boundary and predictions.
 Before only the training data. Predictions: indicate TN, TP, FP, FN
 )
+- adapt meshgrid size with max_depth
 - Add titles
 - Second figure with predictions on all data  (or a different dataset: test set)
 - Metrics in both figures: Recall, Precision, FPR, F1-score. Or a confusion matrix
@@ -76,11 +77,13 @@ def make_classification_traces(X, y, y_hat):
     marker_list = ['circle', 'circle', 'x', 'x']
     color_list = ['blue', 'red', 'red', 'blue']
     size_list = [8, 8, 10, 10]
+    lw_list = [1, 1, 2, 2]
     trace_list = []
-    for marker, color, size, idx in zip(
+    for marker, color, size, lw, idx in zip(
             marker_list,
             color_list,
             size_list,
+            lw_list,
             [TN_idx, TP_idx, FP_idx, FN_idx]
                                 ):
         trace_list.append(go.Scatter(x=X[idx, 0], y=X[idx, 1],
@@ -89,23 +92,22 @@ def make_classification_traces(X, y, y_hat):
                     showlegend=False,
                     marker=dict(size=size,
                                 color=color,
-                                line=dict(color='black', width=1))
+                                line=dict(color='black', width=lw))
                     ))
     return trace_list
 
 
 # Widgets
 st.title('Training Data')
-n = st.sidebar.selectbox('dataset size', [100, 500, 1000])
-random_seed = st.sidebar.number_input('ID', value=1)
-max_depth = st.sidebar.number_input('max tree depth', min_value=1, max_value=25, value=1)
-fit_predict_clf = st.sidebar.button('Fit classifier')
-remove_clf = st.sidebar.button('Remove classifier')
+n = st.sidebar.selectbox('Dataset size', [100, 500, 1000])
+random_seed = st.sidebar.number_input('Population ID', value=1)
+max_depth = st.sidebar.number_input('Max. Tree Depth', min_value=1, max_value=25, value=1)
+fit_predict_clf = st.sidebar.button('Train and Predict')
+remove_clf = st.sidebar.button('Remove Predictions')
 
 # Main App
 X, y = generate_Xy(n=n, seed=random_seed)
 
-#show_clf = fit_predict_clf or not remove_clf
 show_clf = False
 if fit_predict_clf:
     show_clf = True
@@ -114,7 +116,8 @@ if remove_clf:
 
 if show_clf:
     tree = DecisionTreeClassifier(max_depth=max_depth)
-    xx, yy = generate_2d_grid()
+    h = 0.025 if max_depth > 5 else 0.05
+    xx, yy = generate_2d_grid(h=h)
     zz = tree.fit(X, y).predict(np.c_[xx, yy])
     y_hat = tree.fit(X, y).predict(X)
 
