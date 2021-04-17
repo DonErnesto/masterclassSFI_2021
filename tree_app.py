@@ -50,28 +50,12 @@ def generate_Xy(seed=1, n=100):
     y = np.concatenate((np.zeros(n1 + n2), np.ones(n3 + n4)))
     return X, y
 
-# @st.cache
-# def draw_n_from_Xy(X, y, n=100, seed=1):
-#     rng = np.random.default_rng(seed)
-#     idx = np.random.choice(X.shape[0], n, replace=False)
-#     X_sample = X[idx]
-#     y_sample = y[idx]
-#     sort_ids = y_sample.argsort()
-#     X_sample = X_sample[sort_ids]
-#     y_sample = y_sample[sort_ids]
-#     return X_sample, y_sample
-
-
-
-
-# Here: draw at random from X, y
-# X_, y_ = generate_Xy()
+# Draw at random from X, y
 X, y = generate_Xy(n=n, seed=random_seed)
 
 
-
-df = pd.DataFrame({x1_label: X[:, 0], x2_label: X[:, 1], y_label: y})
-df[y_label] = df[y_label].astype(int).astype(str)
+#df = pd.DataFrame({x1_label: X[:, 0], x2_label: X[:, 1], y_label: y})
+#df[y_label] = df[y_label].astype(int).astype(str)
 
 def draw_data():
     fig = go.Figure(go.Scatter(x=X[:, 0], y=X[:, 1],
