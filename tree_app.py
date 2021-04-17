@@ -6,10 +6,10 @@ TO-DO:
 if you press "fit", you see the decision boundary and predictions.
 Before only the training data. Predictions: indicate TN, TP, FP, FN
 )
-- Add good titles
+- Add titles
 - Second figure with predictions on all data  (or a different dataset: test set)
 - Metrics in both figures: Recall, Precision, FPR, F1-score. Or a confusion matrix
-
+- Show the actual decision tree
 
 """
 
@@ -27,15 +27,9 @@ from numpy.random import RandomState
 from sklearn.tree import DecisionTreeClassifier
 
 
-st.title('Decision Tree')
-n = st.sidebar.selectbox('dataset size', [100, 500, 1000])
-random_seed = st.sidebar.number_input('ID', value=1)
-max_depth = st.sidebar.number_input('max tree depth', min_value=1, max_value=25, value=1)
-
-x1_label = 'Transaction Volume'
-x2_label = 'AUM'
+# constants
 y_label = 'Outcome'
-
+x_title, y_title = 'Transaction Volume', 'AUM'
 
 @st.cache
 def generate_Xy(seed=1, n=100):
@@ -50,93 +44,97 @@ def generate_Xy(seed=1, n=100):
     y = np.concatenate((np.zeros(n1 + n2), np.ones(n3 + n4)))
     return X, y
 
-# Draw at random from X, y
-X, y = generate_Xy(n=n, seed=random_seed)
+def update_figlayout(fig, x_title, y_title, x_min=0, x_max=5, y_min=0, y_max=5):
+    fig.update_layout(xaxis=dict(range=[x_min, x_max]))
+    fig.update_layout(yaxis=dict(range=[y_min, y_max]))
+    fig.update_layout(xaxis_title=x_title, yaxis_title=y_title)
 
-
-#df = pd.DataFrame({x1_label: X[:, 0], x2_label: X[:, 1], y_label: y})
-#df[y_label] = df[y_label].astype(int).astype(str)
-
-def draw_data():
-    fig = go.Figure(go.Scatter(x=X[:, 0], y=X[:, 1],
+def draw_raw_data(X, y):
+    fig = go.Figure(go.Scatter
+                        (x=X[:, 0], y=X[:, 1],
                         mode='markers',
                         showlegend=False,
-                        marker=dict(size=10,
+                        marker=dict(size=8,
                                     color=y,
                                     colorscale='portland',
                                     line=dict(color='black', width=1))
                         )
-                         )
-
-
-    fig.update_layout(yaxis=dict(range=[0, 5]))
-    fig.update_layout(xaxis=dict(range=[0, 5]))
-    fig.update_layout(xaxis_title="Transaction volume", yaxis_title="AUM")
+                    )
+    update_figlayout(fig, x_title=x_title, y_title=y_title)
     return fig
 
+def generate_2d_grid(x_min=0, x_max=5, y_min=0, y_max=5, h=0.02):
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                        np.arange(y_min, y_max, h))
+    return xx.ravel(), yy.ravel()
+
+def make_classification_traces(X, y, y_hat):
+    TN_idx = (y == 0) & (y_hat == 0)
+    TP_idx = (y == 1) & (y_hat == 1)
+    FN_idx = (y == 1) & (y_hat == 0)
+    FP_idx = (y == 0) & (y_hat == 1)
+    marker_list = ['circle', 'circle', 'x', 'x']
+    color_list = ['blue', 'red', 'red', 'blue']
+    size_list = [8, 8, 10, 10]
+    trace_list = []
+    for marker, color, size, idx in zip(
+            marker_list,
+            color_list,
+            size_list,
+            [TN_idx, TP_idx, FP_idx, FN_idx]
+                                ):
+        trace_list.append(go.Scatter(x=X[idx, 0], y=X[idx, 1],
+                    mode='markers',
+                    marker_symbol=marker,
+                    showlegend=False,
+                    marker=dict(size=size,
+                                color=color,
+                                line=dict(color='black', width=1))
+                    ))
+    return trace_list
 
 
+# Widgets
+st.title('Training Data')
+n = st.sidebar.selectbox('dataset size', [100, 500, 1000])
+random_seed = st.sidebar.number_input('ID', value=1)
+max_depth = st.sidebar.number_input('max tree depth', min_value=1, max_value=25, value=1)
+fit_predict_clf = st.sidebar.button('Fit classifier')
+remove_clf = st.sidebar.button('Remove classifier')
 
-# Fitting a tree to the dataset
+# Main App
+X, y = generate_Xy(n=n, seed=random_seed)
 
-if st.sidebar.button('Fit classifier'):
+#show_clf = fit_predict_clf or not remove_clf
+show_clf = False
+if fit_predict_clf:
+    show_clf = True
+if remove_clf:
+    show_clf = False
+
+if show_clf:
     tree = DecisionTreeClassifier(max_depth=max_depth)
-    h = 0.02
-    x_min, x_max = 0, 5
-    y_min, y_max = 0, 5
-
-    xx, yy = np.meshgrid(np.arange(x_min, x_max, h)
-                         , np.arange(y_min, y_max, h))
-    zz = tree.fit(X, y).predict(np.c_[xx.ravel(), yy.ravel()])
+    xx, yy = generate_2d_grid()
+    zz = tree.fit(X, y).predict(np.c_[xx, yy])
     y_hat = tree.fit(X, y).predict(X)
 
-    trace1 = go.Heatmap(x=xx.ravel(), y=yy.ravel(), z=zz,
+
+    trace1 = go.Heatmap(x=xx, y=yy, z=zz,
                   colorscale='portland',
+                  opacity=0.2,
                   showscale=False)
-    trace2 = go.Scatter(x=X[:, 0], y=X[:, 1],
-                    mode='markers',
-                    showlegend=False,
-                    marker=dict(size=10,
-                                color=y_hat,
-                                colorscale='portland',
-                                line=dict(color='black', width=1))
-                    )
-    #fig = plotly.subplots.make_subplots(rows=1, cols=1,
-    #                       subplot_titles=("Random Forest (Depth = 4)",))
-    #fig = draw_data()
+    trace_TN, trace_TP, trace_FP, trace_FN = make_classification_traces(
+                                            X, y, y_hat)
     fig = go.Figure()
     fig.add_trace(trace1)
-    fig.add_trace(trace2)
-    fig.update_layout(xaxis_title="Transaction volume", yaxis_title="AUM")
+    fig.add_trace(trace_TN)
+    fig.add_trace(trace_TP)
+    fig.add_trace(trace_FN)
+    fig.add_trace(trace_FP)
 
-    fig.update_layout(yaxis=dict(range=[0, 5]))
-    fig.update_layout(xaxis=dict(range=[0, 5]))
+    update_figlayout(fig, x_title=x_title, y_title=y_title)
     st.plotly_chart(fig)
 else:
-    fig = draw_data()
+    fig = draw_raw_data(X, y)
+    update_figlayout(fig, x_title=x_title, y_title=y_title)
     st.plotly_chart(fig)
-
-
-
-# create a meshgrid for visualizing the decision boundary
-comment = r"""
-x_min, x_max = 0, 5
-y_min, y_max = 0, 5
-h = 0.25
-
-xx, yy = np.meshgrid(np.arange(x_min, x_max, h)
-                     , np.arange(y_min, y_max, h))
-Z = tree.predict(np.c_[xx.ravel(), yy.ravel()])
-Z = Z.reshape(xx.shape) """
-
-
-
-
-# X, y = generate_Xy()
-#
-# fig, ax = plt.subplots(figsize=(6, 6))
-# plt.xlabel("X0", fontsize=20)
-# plt.ylabel("X1", fontsize=20)
-# plt.scatter(X[:,0], X[:,1], s=60, c=y)
-#
-# st.pyplot(fig)
