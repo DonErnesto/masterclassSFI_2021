@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # Keynote presentations
-.key
+*.key
 
 # Project-specific
 exploration/
