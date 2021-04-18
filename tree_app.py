@@ -6,10 +6,14 @@ TO-DO:
 if you press "fit", you see the decision boundary and predictions.
 Before only the training data. Predictions: indicate TN, TP, FP, FN
 )
-- adapt meshgrid size with max_depth
-- Add titles
++ adapt meshgrid size with max_depth
++ Add titles
+
++ Radio button widget for training
++ Separate fitting from plotting
++ Separate train and test data
+- Metrics (Confusion matrix, recall and precision)
 - Second figure with predictions on all data  (or a different dataset: test set)
-- Metrics in both figures: Recall, Precision, FPR, F1-score. Or a confusion matrix
 - Show the actual decision tree
 
 """
@@ -25,16 +29,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly
 from numpy.random import RandomState
-from sklearn.tree import DecisionTreeClassifier
-
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+import sklearn.metrics
 
 # constants
+local_grid = False
 y_label = 'Outcome'
 x_title, y_title = 'Transaction Volume', 'AUM'
 
 @st.cache
 def generate_Xy(seed=1, n=100):
-    n1, n2, n3, n4 = int(n*0.25), int(n*0.25), int(n*.05), int(n*.05)
+    n1, n2, n3, n4 = int(n*0.45), int(n*0.45), int(n*.05), int(n*.05)
     rng = np.random.default_rng(seed)
     X1 = rng.multivariate_normal(mean=[1.9, 3.0],
                 cov=[[0.2, -0.12], [-0.12, 0.2]], size=n1)
@@ -45,10 +50,12 @@ def generate_Xy(seed=1, n=100):
     y = np.concatenate((np.zeros(n1 + n2), np.ones(n3 + n4)))
     return X, y
 
-def update_figlayout(fig, x_title, y_title, x_min=0, x_max=5, y_min=0, y_max=5):
+def update_figlayout(fig, x_title, y_title, x_min=0, x_max=5, y_min=0, y_max=5,
+        title=''):
     fig.update_layout(xaxis=dict(range=[x_min, x_max]))
     fig.update_layout(yaxis=dict(range=[y_min, y_max]))
     fig.update_layout(xaxis_title=x_title, yaxis_title=y_title)
+    fig.update_layout(title=title, title_x=0.5)
 
 def draw_raw_data(X, y):
     fig = go.Figure(go.Scatter
@@ -67,6 +74,22 @@ def draw_raw_data(X, y):
 def generate_2d_grid(x_min=0, x_max=5, y_min=0, y_max=5, h=0.02):
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
                         np.arange(y_min, y_max, h))
+    return xx.ravel(), yy.ravel()
+
+def generate_local_2d_grid():
+    """ Combines a rough global grid refined with the split points.
+    Is faster, but somehow the plotly heatmap does not quite correspond.
+    Are the values set on the edges or the cell centers?
+    """
+    xx_ = np.sort(np.concatenate( (np.arange(0, 5.1, 0.1),
+                             tree.tree_.threshold[tree.tree_.feature == 0] - 1E-6
+                    )
+                  ))
+    yy_ = np.sort(np.concatenate( (np.arange(0, 5.1, 0.1),
+                             tree.tree_.threshold[tree.tree_.feature == 1] - 1E-6
+                    )
+                  ))
+    xx, yy = np.meshgrid(xx_, yy_)
     return xx.ravel(), yy.ravel()
 
 def make_classification_traces(X, y, y_hat):
@@ -96,48 +119,93 @@ def make_classification_traces(X, y, y_hat):
                     ))
     return trace_list
 
+def make_basic_fig(X, y):
+    fig = draw_raw_data(X, y)
+    update_figlayout(fig, x_title=x_title, y_title=y_title)
+    st.plotly_chart(fig)
 
 # Widgets
-st.title('Training Data')
-n = st.sidebar.selectbox('Dataset size', [100, 500, 1000])
-random_seed = st.sidebar.number_input('Population ID', value=1)
-max_depth = st.sidebar.number_input('Max. Tree Depth', min_value=1, max_value=25, value=1)
-fit_predict_clf = st.sidebar.button('Train and Predict')
-remove_clf = st.sidebar.button('Remove Predictions')
+st.title('Decision Tree on 2-D Data')
+n_train = st.sidebar.selectbox('Train Data size', [100, 500, 1000])
+random_seed_train = st.sidebar.number_input('Train Population ID', min_value=0, max_value=1000, value=1)
+n_test = st.sidebar.selectbox('Test Data size', [100, 500, 1000])
+random_seed_test = st.sidebar.number_input('Test Population ID', min_value=0, max_value=1000, value=1)
+
+
+max_depth = st.sidebar.number_input('Max. Tree Depth', min_value=1, max_value=10, value=1)
+fit_predict_clf = st.sidebar.checkbox('Train and Show Predictions', value=False)
+show_traintest_data = st.sidebar.radio('Show Train or Test data', ['train', 'test'])
+#local_grid = st.sidebar.checkbox('Local grid refinement', value=False)
+fine_grid = st.sidebar.checkbox('Fine grid for rendering (slower)', value=False)
+# remove_clf = st.sidebar.button('Remove Predictions')
 
 # Main App
-X, y = generate_Xy(n=n, seed=random_seed)
+X_train, y_train = generate_Xy(n=n_train, seed=random_seed_train)
+X_test, y_test = generate_Xy(n=n_test, seed=random_seed_test)
 
-show_clf = False
+
 if fit_predict_clf:
-    show_clf = True
-if remove_clf:
-    show_clf = False
+    tree = DecisionTreeClassifier(max_depth=max_depth, random_state=1)
+    clf = tree.fit(X_train, y_train)
+    # Make X,y scatter traces
+    if show_traintest_data == 'train':
+        y_hat_plot = clf.predict(X_train)
+        y_plot = y_train
+        X_plot = X_train
+    else:
+        y_hat_plot = clf.predict(X_test)
+        y_plot = y_test
+        X_plot = X_test
+    trace_TN, trace_TP, trace_FP, trace_FN = make_classification_traces(
+                                                X_plot, y_plot, y_hat_plot)
+    # Make Decisionboundary trace
+    h = 0.02 if max_depth > 3 else 0.04
+    if fine_grid:
+        h = h * 0.5
+    if local_grid:
+        xx, yy = generate_local_2d_grid()
+    else:
+        xx, yy = generate_2d_grid(h=h)
 
-if show_clf:
-    tree = DecisionTreeClassifier(max_depth=max_depth)
-    h = 0.025 if max_depth > 5 else 0.05
-    xx, yy = generate_2d_grid(h=h)
-    zz = tree.fit(X, y).predict(np.c_[xx, yy])
-    y_hat = tree.fit(X, y).predict(X)
-
-
-    trace1 = go.Heatmap(x=xx, y=yy, z=zz,
+    zz = clf.predict(np.c_[xx, yy])
+    trace_db = go.Heatmap(x=xx, y=yy, z=zz,
                   colorscale='portland',
                   opacity=0.2,
                   showscale=False)
-    trace_TN, trace_TP, trace_FP, trace_FN = make_classification_traces(
-                                            X, y, y_hat)
+
+    recall = sklearn.metrics.recall_score(y_plot, y_hat_plot)
+    precision = sklearn.metrics.precision_score(y_plot, y_hat_plot)
+    accuracy = sklearn.metrics.accuracy_score(y_plot, y_hat_plot)
+
+
+
+else:
+    tree = None
+
+
+if not tree is None:
     fig = go.Figure()
-    fig.add_trace(trace1)
+    fig.add_trace(trace_db)
     fig.add_trace(trace_TN)
     fig.add_trace(trace_TP)
     fig.add_trace(trace_FN)
     fig.add_trace(trace_FP)
+    title_head = '    Train Data: ' if show_traintest_data == 'train' else '    Test Data: '
+    update_figlayout(fig, x_title=x_title, y_title=y_title,
+                    title=f'{title_head} Accuracy = {accuracy:.1%}, '\
+                          f'Recall = {recall:.1%}, Precision = {precision:.1%}')
+    st.plotly_chart(fig)
 
-    update_figlayout(fig, x_title=x_title, y_title=y_title)
-    st.plotly_chart(fig)
+    y_actu = pd.Series(y_plot, name='Actual Label').astype(int)
+    y_pred = pd.Series(y_hat_plot, name='Predicted Label').astype(int)
+
+    df_confusion = pd.crosstab(y_actu, y_pred, margins=True)
+    df_confusion.columns = ['Predicted N', 'Predicted P','All']
+    df_confusion.index = ['Actual N', 'Actual P', 'All']
+
+    st.dataframe(df_confusion, 400, 400)
 else:
-    fig = draw_raw_data(X, y)
-    update_figlayout(fig, x_title=x_title, y_title=y_title)
-    st.plotly_chart(fig)
+    if show_traintest_data == 'train':
+        make_basic_fig(X_train, y_train)
+    else:
+        make_basic_fig(X_test, y_test)
