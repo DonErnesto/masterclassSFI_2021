@@ -139,3 +139,4 @@ private/
 archive/
 bigdata/
 notebooks/*.csv
+notebooks/*.csv.zip
