@@ -138,3 +138,4 @@ exploration/
 private/
 archive/
 bigdata/
+notebooks/*.csv
