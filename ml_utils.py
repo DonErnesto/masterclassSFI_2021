@@ -32,7 +32,7 @@ def slice_gridsearch(gs, vary_parameter_name, fix_parameter_name=None, fix_param
             plt.boxplot(df.loc[df[fix_parameter_name]==fix_parameter_value, split_cols].T.values,
                labels=df.loc[df[fix_parameter_name]==fix_parameter_value, vary_parameter_name])
         _ = plt.xlabel(' '.join(vary_parameter_name.split('_')))
-    return df
+        return df
     except AttributeError:
         print('Aborting; make sure the passed GridSearchCV object has been fitted')
         return None

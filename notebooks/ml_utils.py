@@ -18,20 +18,24 @@ def slice_gridsearch(gs, vary_parameter_name, fix_parameter_name=None, fix_param
     Returns: the DataFrame with all gridsearch results
     """
     vary_parameter_name = 'param_' + vary_parameter_name
-    if fix_parameter_name:
-        fix_parameter_name = 'param_' + fix_parameter_name
-        assert fix_parameter_value in gs.cv_results_[fix_parameter_name].data, \
-                    f'Value {fix_parameter_value} not present in {fix_parameter_name}'
-    df = pd.DataFrame(gs.cv_results_)
-    split_cols = [col for col in df.columns if col.startswith('split')]
-    if fix_parameter_name is None:
-        plt.boxplot(df[split_cols].T.values,
-           labels=df[vary_parameter_name])
-    else:
-        plt.boxplot(df.loc[df[fix_parameter_name]==fix_parameter_value, split_cols].T.values,
-           labels=df.loc[df[fix_parameter_name]==fix_parameter_value, vary_parameter_name])
-    _ = plt.xlabel(' '.join(vary_parameter_name.split('_')))
-    return df
+    try:
+        if fix_parameter_name:
+            fix_parameter_name = 'param_' + fix_parameter_name
+            assert fix_parameter_value in gs.cv_results_[fix_parameter_name].data, \
+                        f'Value {fix_parameter_value} not present in {fix_parameter_name}'
+        df = pd.DataFrame(gs.cv_results_)
+        split_cols = [col for col in df.columns if col.startswith('split')]
+        if fix_parameter_name is None:
+            plt.boxplot(df[split_cols].T.values,
+               labels=df[vary_parameter_name])
+        else:
+            plt.boxplot(df.loc[df[fix_parameter_name]==fix_parameter_value, split_cols].T.values,
+               labels=df.loc[df[fix_parameter_name]==fix_parameter_value, vary_parameter_name])
+        _ = plt.xlabel(' '.join(vary_parameter_name.split('_')))
+        return df
+    except AttributeError:
+        print('Aborting; make sure the passed GridSearchCV object has been fitted')
+        return None
 
 
 
