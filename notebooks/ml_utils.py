@@ -223,13 +223,15 @@ class LabelSubmitter():
         except:
             return res
 
-def plot_outlier_scores(y_true, scores, title='', **kdeplot_options):
+def plot_conditional_distribution(y_true, scores, title='', **kdeplot_options):
     """
+    Plots the distribution of the positive and negative class in y_true over the
+    scores.
+
     y_true (np-array): array with actual labels (0/1)
     scores (np-array): array with outlier scores
     title (str): title to be added to plot
-
-    **kdeplot_options (such as bw for kde kernel width) are passed to sns.kdeplot()
+    **kdeplot_options: keyword arguments are passed to sns.kdeplot()
 
     Returns: a pd.DataFrame with classification results
     """
