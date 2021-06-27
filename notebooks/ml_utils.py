@@ -9,6 +9,49 @@ import pandas as pd
 
 from sklearn.metrics import roc_auc_score, average_precision_score
 
+def grouped_boxplot_gridsearch(gs, parameter_names, filter_parameter_name=None, filter_parameter_value=None,
+                                train_scores=False):
+    """
+    Makes grouped boxplots of the cross-validation split results within the GridSearch object gs,
+    for all values of parameter_names. The first parameter in parameter_names is plotted along the x-axis,
+    the (optional) 2nd parameter is plotted with a different hue.
+
+    When filter_parameter_name is not None, it filters for filter_parameter_name = filter_parameter_value
+
+    Returns: the DataFrame with all (unfiltered) gridsearch results
+    """
+    assert (isinstance(parameter_names, list) or
+                isinstance(parameter_names, list)) and len(parameter_names) <=2, 'parameter_names should be'\
+        'given as a list or tuple, with max length 2'
+    parameter_names = ['param_' + parname for parname in parameter_names]
+    try:
+        df = pd.DataFrame(gs.cv_results_)
+    except AttributeError:
+        print('Aborting; make sure the passed GridSearchCV object has been fitted')
+        return None
+
+    if filter_parameter_name is None:
+        df_plot = df.copy()
+    else:
+        assert filter_parameter_value in gs.cv_results_[filter_parameter_name].data, \
+                    f'Value {filter_parameter_value} not present in {filter_parameter_name}'
+        df_plot = df.loc[df.loc[df[filter_parameter_name]==filter_parameter_value], :]
+    # determine the cross-validation columns, and do a melt (unpivot) with these
+    if train_scores:
+        split_cols = [col for col in df.columns if col.startswith('split') and 'train' in col]
+    else:
+        split_cols = [col for col in df.columns if col.startswith('split') and 'test' in col]
+
+    df_plot = df_plot.melt(value_vars=split_cols,
+                           id_vars=parameter_names)
+    hue = df_plot[parameter_names[1]] if len(parameter_names) == 2 else None
+    sns.boxplot(x = df_plot[parameter_names[0]],
+                y = df_plot['value'],
+               hue=hue)
+    return df
+
+
+
 def slice_gridsearch(gs, vary_parameter_name, fix_parameter_name=None, fix_parameter_value=None):
     """
     Makes boxplots of the cross-validation split results within the GridSearch object gs,
@@ -251,9 +294,10 @@ def plot_conditional_distribution(y_true, scores, title='', **kdeplot_options):
     sns.kdeplot(classify_results.loc[classify_results.true==1, 'score'], label='positives',
                 shade=True, **kdeplot_options)
     plt.title('{} AUC-ROC: {:.3f}, AUC-PR: {:.3f}'.format(title, aucroc_score, aucpr_score))
-    plt.xlabel('Predicted outlier score');
+    plt.xlabel('Predicted score');
+    plt.ylabel('Probability density');
+    plt.legend()
     return classify_results
-
 
 def plot_top_N(y_true, scores, N=100):
     """
