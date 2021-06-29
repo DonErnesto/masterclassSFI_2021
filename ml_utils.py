@@ -301,6 +301,10 @@ def plot_conditional_distribution(y_true, scores, title='', **kdeplot_options):
 
 def plot_top_N(y_true, scores, N=100):
     """
+    Shows the first N points (as ranked by scores) and colored by y_true,
+    the binary true labels.
+
+
     y_true (np-array): array with actual labels (0/1)
     scores (np-array): array with outlier scores
     N (int): top-N size
@@ -308,6 +312,8 @@ def plot_top_N(y_true, scores, N=100):
     Returns: a pd.DataFrame with classification results
 
     """
+    cmap = plt.get_cmap('viridis', 2)
+
     assert len(y_true) == len(scores), 'Error: '\
     'Expecting y_true and scores to be 1-D and of equal length'
     if isinstance(y_true, pd.Series):
@@ -317,18 +323,19 @@ def plot_top_N(y_true, scores, N=100):
     N = min(N, len(scores))
     classify_results = pd.DataFrame(data=pd.concat((pd.Series(y_true), pd.Series(scores)), axis=1))
     classify_results.rename(columns={0:'true', 1:'score'}, inplace=True)
+    classify_results['true'] = classify_results['true'].astype(int)
     classify_results = classify_results.sort_values(by='score', ascending=False)[:N]
     Npos_in_N = classify_results['true'].sum()
 
     fig, ax = plt.subplots(1, 1, figsize=(16, 2))
     ims = ax.imshow(np.reshape(classify_results.true.values, [1, -1]),
                 extent=[-0.5, N, N/50, -0.5],
-                vmin=0, vmax=1)
+                vmin=0, vmax=1,cmap=cmap)
     ax.yaxis.set_visible(False)
     # ax.xaxis.set_ticklabels
-    plt.colorbar(ims)
+    plt.colorbar(ims, ticks=[0, 1])
     plt.xlabel('Outlier rank [-]')
-    plt.title(f'Yellow: positive, Purple:Negative. Number of positives found: {Npos_in_N} (P@Rank{N}: {Npos_in_N/N:.1%})')
+    plt.title(f'Number of positives found: {Npos_in_N} (P@Rank{N}: {Npos_in_N/N:.1%})')
     #plt.show()
     return classify_results
 
