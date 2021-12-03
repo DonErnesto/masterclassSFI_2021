@@ -12,6 +12,7 @@ st.write(pd.DataFrame({
     'second column': [10, 20, 30, 40]
 }))
 
+def get_data(
 
 if st.checkbox('Show dataframe'):
     chart_data = pd.DataFrame(
