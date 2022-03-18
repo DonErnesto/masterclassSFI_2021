@@ -7,7 +7,12 @@ import numpy as np
 import pandas as pd
 import requests
 import seaborn as sns
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import (roc_auc_score,
+                            roc_curve,
+                            precision_recall_curve,
+                            auc,
+                            average_precision_score
+                            )
 
 API_URL = r"https://amld2021-unsupervised.herokuapp.com/"
 cost_dict = {
@@ -257,6 +262,46 @@ def plot_outlier_scores(
     plt.xlabel("Predicted outlier score")
     plt.legend()
     return classify_results
+
+
+
+def plot_roc_averageprecision_curves(y_true, y_pred):
+    fpr, tpr, _ = roc_curve(y_true, y_pred)
+    prec, recall, _ = precision_recall_curve(y_true, y_pred)
+
+    roc_auc = auc(fpr, tpr)
+    ap = average_precision_score(y, homemade_outlier_scores)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+    ax1.plot(
+        fpr,
+        tpr,
+        color="darkorange",
+        lw=lw,
+        label="ROC curve")
+    ax1.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+    ax1.set_xlim([0.0, 1.0])
+    ax1.set_ylim([0.0, 1.05])
+    ax1.set_xlabel("False Positive Rate", fontsize=14)
+    ax1.set_ylabel("True Positive Rate", fontsize=14)
+    ax1.set_title(f"ROC curve (AUC = {roc_auc:.2f})", fontsize=15)
+    ax1.legend(loc="lower right")
+
+    ax2.plot(
+        recall,
+        prec,
+        color="darkorange",
+        lw=lw,
+        label="Precision-recall curve")
+    ax2.set_xlim([0.0, 1.0])
+    ax2.set_ylim([0.0, 1.05])
+    ax2.set_xlabel("True Positive Rate (Recall)", fontsize=14)
+    ax2.set_ylabel("Precision", fontsize=14)
+    ax2.set_title(f"AP curve (AUC = {ap:.2f})", fontsize=15)
+    ax2.legend(loc="lower right")
+    plt.display()
+
 
 
 def plot_top_N(y_true: List[int], scores: List[float], N: int = 100) -> pd.DataFrame:
